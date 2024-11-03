@@ -1,6 +1,6 @@
-# Wormle Image Generator
+# Wormle Instagram Publisher
 
-This index.js script uses [Puppeteer](https://github.com/puppeteer/puppeteer) to capture a screenshot of the daily [wormle](https://wormle.com) game before and after completion, and then uploads it to an S3 bucket.
+This index.js script uses uses Meta API to publish images from an s3 bucket to the wormle instagram account
 
 ## Local Development
 
