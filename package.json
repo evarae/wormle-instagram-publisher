@@ -1,0 +1,18 @@
+{
+  "name": "wormle-image-generator",
+  "version": "1.0.0",
+  "description": "Generates images from solved wormle puzzles",
+  "main": "src/index.mjs",
+  "scripts": {
+    "start": "node --env-file=.env test.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.679.0",
+    "@sparticuz/chromium": "^130.0.0",
+    "puppeteer-core": "^23.6.1"
+  },
+  "type": "module"
+}
