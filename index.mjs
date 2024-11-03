@@ -1,31 +1,63 @@
-async function postAndPublishToInstagram() {
-  const caption = `Testing wormle post: ${Date.now()}`;
+async function postCarouselToInstagram() {
+  const CAPTION =
+    "Have you beaten today's wormle? Share your results below!\n\n#";
+
+  const imageUrls = [
+    process.env.UNSOLVED_IMAGE_URL,
+    process.env.SPOILER_IMAGE_URL,
+    process.env.SOLVED_IMAGE_URL,
+  ];
 
   try {
-    // Step 1: Create a media container
-    const mediaResponse = await fetch(
+    // Step 1: Create media containers for each image
+    const mediaIds = [];
+    for (const imageUrl of imageUrls) {
+      const mediaResponse = await fetch(
+        `https://graph.instagram.com/v21.0/${process.env.INSTAGRAM_ACCOUNT_ID}/media`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image_url: imageUrl,
+            is_carousel_item: true,
+            access_token: process.env.ACCESS_TOKEN,
+          }),
+        }
+      );
+
+      const mediaData = await mediaResponse.json();
+
+      if (mediaData.id) {
+        mediaIds.push(mediaData.id);
+      } else {
+        throw new Error("Failed to create media container for image.");
+      }
+    }
+
+    // Step 2: Create the carousel container with the media IDs
+    const carouselResponse = await fetch(
       `https://graph.instagram.com/v21.0/${process.env.INSTAGRAM_ACCOUNT_ID}/media`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          image_url:
-            "https://wormle-screenshots.s3.us-east-1.amazonaws.com/imageUnsolved.jpg",
-          caption: caption,
+          media_type: "CAROUSEL",
+          caption: CAPTION,
+          children: mediaIds,
           access_token: process.env.ACCESS_TOKEN,
         }),
       }
     );
 
-    const mediaData = await mediaResponse.json();
+    const carouselData = await carouselResponse.json();
 
-    if (!mediaData.id) {
-      throw new Error("Failed to create media container.");
+    if (!carouselData.id) {
+      throw new Error("Failed to create carousel container.");
     }
 
-    const creationId = mediaData.id;
+    const creationId = carouselData.id;
 
-    // Step 2: Publish the media
+    // Step 3: Publish the carousel
     const publishResponse = await fetch(
       `https://graph.instagram.com/v21.0/${process.env.INSTAGRAM_ACCOUNT_ID}/media_publish`,
       {
@@ -41,16 +73,19 @@ async function postAndPublishToInstagram() {
     const publishData = await publishResponse.json();
 
     if (publishData.id) {
-      console.log("Post published successfully with ID:", publishData.id);
+      console.log(
+        "Carousel post published successfully with ID:",
+        publishData.id
+      );
     } else {
-      throw new Error("Failed to publish media.");
+      throw new Error("Failed to publish carousel.");
     }
   } catch (error) {
-    console.error("Error posting to Instagram:", error);
+    console.error("Error posting carousel to Instagram:", error);
   }
 }
 
 export const handler = async (event, context) => {
   console.log("EVENT: \n" + JSON.stringify(event, null, 2));
-  await postAndPublishToInstagram();
+  await postCarouselToInstagram();
 };
