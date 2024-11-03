@@ -1,98 +1,56 @@
-import puppeteer from "puppeteer-core";
-import chromium from "@sparticuz/chromium";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+async function postAndPublishToInstagram() {
+  const caption = `Testing wormle post: ${Date.now()}`;
 
-const GAME_GRID_CLASS = ".puppeteer-target";
-const OUTPUT_PATH_UNSOLVED = "imageUnsolved.jpg";
-const OUTPUT_PATH_SOLVED = "imageSolved.jpg";
-const SOLVE_PUZZLE_COMMAND = "window.Wormle.solvePuzzle()";
-
-async function uploadToS3(s3Client, filename, body) {
   try {
-    const command = new PutObjectCommand({
-      Bucket: process.env.AWS_BUCKET_NAME,
-      Key: filename,
-      Body: body,
-    });
+    // Step 1: Create a media container
+    const mediaResponse = await fetch(
+      `https://graph.instagram.com/v21.0/${process.env.INSTAGRAM_ACCOUNT_ID}/media`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image_url:
+            "https://wormle-screenshots.s3.us-east-1.amazonaws.com/imageUnsolved.jpg",
+          caption: caption,
+          access_token: process.env.ACCESS_TOKEN,
+        }),
+      }
+    );
 
-    const response = await s3Client.send(command);
-    console.log(response);
-    return response;
-  } catch (err) {
-    console.log(err);
+    const mediaData = await mediaResponse.json();
+
+    if (!mediaData.id) {
+      throw new Error("Failed to create media container.");
+    }
+
+    const creationId = mediaData.id;
+
+    // Step 2: Publish the media
+    const publishResponse = await fetch(
+      `https://graph.instagram.com/v21.0/${process.env.INSTAGRAM_ACCOUNT_ID}/media_publish`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creation_id: creationId,
+          access_token: process.env.ACCESS_TOKEN,
+        }),
+      }
+    );
+
+    const publishData = await publishResponse.json();
+
+    if (publishData.id) {
+      console.log("Post published successfully with ID:", publishData.id);
+    } else {
+      throw new Error("Failed to publish media.");
+    }
+  } catch (error) {
+    console.error("Error posting to Instagram:", error);
   }
 }
 
 export const handler = async (event, context) => {
   console.log("EVENT: \n" + JSON.stringify(event, null, 2));
-  await main();
+  await postAndPublishToInstagram();
 };
-
-async function main() {
-  console.log("Creating chromium browser...");
-  //Using the lightweight chromium build doesn't work locally, see https://github.com/Sparticuz/chromium?tab=readme-ov-file#running-locally--headlessheadful-mode
-  const browser = await puppeteer.launch({
-    args: process.env.IS_LOCAL ? puppeteer.defaultArgs() : chromium.args,
-    executablePath: process.env.IS_LOCAL
-      ? process.env.LOCAL_CHROME_PATH
-      : await chromium.executablePath(),
-    headless: process.env.IS_LOCAL ? false : chromium.headless,
-  });
-
-  console.log("Generating screenshots...");
-  const page = await browser.newPage();
-
-  //Results in higher resolution image than the default
-  await page.setViewport({
-    width: 800,
-    height: 800,
-    deviceScaleFactor: 2,
-  });
-
-  await page.goto(process.env.WORMLE_URL);
-
-  //hide demo modal
-  await page.locator("h1").click();
-
-  //Get height/width of the game
-  const { width, height } = await page.evaluate((selector) => {
-    const element = document.querySelector(selector);
-    if (!element) return { width: null, height: null };
-    const rect = element.getBoundingClientRect();
-    return { width: rect.width, height: rect.height };
-  }, GAME_GRID_CLASS);
-
-  const max = height > width ? height : width;
-
-  await page.addStyleTag({
-    content: `${GAME_GRID_CLASS}{height: ${max}px; width: ${max}px; justify-content: center; padding: 20px}`,
-  });
-
-  const unsolvedGameContainer = await page.waitForSelector(GAME_GRID_CLASS);
-  const screenshotUnsolved = await unsolvedGameContainer.screenshot();
-
-  await page.evaluate(SOLVE_PUZZLE_COMMAND);
-
-  //hide win modal
-  await page.locator("h1").click();
-
-  const solvedGameContainer = await page.waitForSelector(GAME_GRID_CLASS);
-  const screenshotSolved = await solvedGameContainer.screenshot();
-
-  console.log("Uploading to S3...");
-
-  //Upload screenshots to S3
-  const s3Client = new S3Client({
-    region: process.env.AWS_BUCKET_REGION,
-    credentials: {
-      accessKeyId: process.env.ACCESS_KEY,
-      secretAccessKey: process.env.SECRET_KEY,
-    },
-  });
-
-  uploadToS3(s3Client, OUTPUT_PATH_UNSOLVED, screenshotUnsolved);
-  uploadToS3(s3Client, OUTPUT_PATH_SOLVED, screenshotSolved);
-
-  await page.close();
-  await browser.close();
-}

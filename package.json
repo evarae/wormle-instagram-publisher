@@ -1,7 +1,7 @@
 {
-  "name": "wormle-image-generator",
+  "name": "wormle-instagram-publisher",
   "version": "1.0.0",
-  "description": "Generates images from solved wormle puzzles",
+  "description": "Publishes images to the wormle instagram",
   "main": "src/index.mjs",
   "scripts": {
     "start": "node --env-file=.env test.js",
@@ -10,9 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.679.0",
-    "@sparticuz/chromium": "^130.0.0",
-    "puppeteer-core": "^23.6.1"
+    "@aws-sdk/client-s3": "^3.679.0"
   },
   "type": "module"
 }
