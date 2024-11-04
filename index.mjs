@@ -1,6 +1,6 @@
 async function postCarouselToInstagram() {
   const CAPTION =
-    "Have you beaten today's wormle? Share your results below!\n\n#";
+    "Have you beaten today's wormle? Share your results below!\n\n#wormle #dailygame";
 
   const imageUrls = [
     process.env.UNSOLVED_IMAGE_URL,
